@@ -16,11 +16,11 @@ namespace ADBConsole
         bool bTest;
 
         Thread m_adbListenThread;
-        StringBuilder adbOutputStrings;
+        Queue adbOutputQueue;
         ADBAccess m_ADBAccess;
         bool m_bSuspendLogout;
-        
-        //bool m_bCMDWriting;
+        System.IO.StreamWriter m_logFile;
+
         bool m_bCMDQueuing;
 
         //This queue contains ADB commands.
@@ -40,11 +40,11 @@ namespace ADBConsole
         {
             InitializeComponent();
 
-            //m_bCMDWriting = false;
             m_bCMDQueuing = false;
             m_adbListenThread = null;
-            bool m_bSuspendLogout = false;
             bTest = true;
+
+            m_logFile = new System.IO.StreamWriter(@".\AdbMessage.log");
 
             m_ADBCommandQueue = new Queue();
             m_ADBCommandQueueReader = Queue.Synchronized(m_ADBCommandQueue);
@@ -52,88 +52,42 @@ namespace ADBConsole
 
             m_ADBAccess = new ADBAccess();
             m_ADBAccess.WinOutputQueueReader = m_ADBCommandQueueReader;
-
-            /*
-            string line2 = @"12-15 14:39:27.889 I/ActivityManager(  566): Killing 26999:com.google.android.apps.docs/u0a42i12 (adj 9): isolated not needed";            
-             * 
-
-            string dateValue = "";
-            string timeValue = "";
-            char tagLevel;
-            string tagName = "";
-            try
-            {            
-                string pattern = @"^\d{2}[-]\d{2}";
-                Match match = Regex.Match(line2, pattern);
-                if(match.Success)
-                {
-                    dateValue = match.Value;
-                }
-
-                pattern = @"\d{2}[:]\d{2}[:]\d{2}[.]\d{3}";
-                match = Regex.Match(line2, pattern);
-                if (match.Success)
-                {
-                    timeValue = match.Value;
-                }
-
-                pattern = @"[IDWE][/]\w+\s*[(]\s*\d+[)]";
-                match = Regex.Match(line2, pattern);
-                if (match.Success)
-                {
-                    tagLevel = match.Value[0];
-
-                    int startBracket = match.Value.IndexOf('(');
-                    if( 2 <= startBracket )
-                    {
-                        tagName = match.Value.Substring(2, startBracket - 2);
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                Console.WriteLine("Exception from Regex");
-            }*/
         }
 
         private void StartListen()
         {
-            adbOutputStrings = new StringBuilder();
-
+            adbOutputQueue = new Queue(1000,2);
+            
             while (true)
             {
                 try
                 {
-                    //if (m_bCMDWriting) //don't read/write concurrently
-                    //    continue;
-
                     if (!m_ADBAccess.isCMDOutputQueueEmpty())
                     {
-                        adbOutputStrings.Append(m_ADBAccess.CMDOutputDequeue());
-                        if (0 == adbOutputStrings.Length)
-                        {
-                            break;
-                        }
-                        else
-                        {
-                            adbOutputStrings.Append("\r\n");
-                            Application.DoEvents();
+                        adbOutputQueue.Enqueue(m_ADBAccess.CMDOutputDequeue() + "\r\n");
+                    }
 
-                            if ( !m_bSuspendLogout )
-                            {
-                                DisplayMessage(adbOutputStrings.ToString());
-                                adbOutputStrings.Remove(0, adbOutputStrings.Length);
-                            }
-                        }
-                    }                  
+                    Application.DoEvents();
+
+                    if (0 == adbOutputQueue.Count)
+                    {
+                        //only sleep when there is no string in the queue.
+                        System.Threading.Thread.Sleep(5);
+                    }
+                    else
+                    {                      
+                         if ( !m_bSuspendLogout )
+                         {
+                             DisplayMessage(adbOutputQueue.Dequeue().ToString());
+                         }
+                    }
                 }
                 catch (Exception err)
                 {
                     Console.WriteLine("WinListen Thread Exception: " + err.Message);
                     //Cleanup();
                     break;
-                }
-                System.Threading.Thread.Sleep(2);
+                }                
             }
         }
 
@@ -145,31 +99,10 @@ namespace ADBConsole
                 Invoke(new DisplayDelegate(DisplayMessage), new object[] { message });
             }
             else
-            {
-                //if (!ParsingCVSLog)
-                //{
-
-                                
+            {                               
                 try
                 {
-                    /*
-                    string pattern = @"^\d{2}[-]\d{2}";
-                    Match match = Regex.Match(message, pattern);
-                    string dateValue = "";
-                    if (match.Success)
-                    {
-                        dateValue = match.Value;
-                    }
-
-                    pattern = @"\d{2}[:]\d{2}[:]\d{2}[.]\d{3}";
-                    match = Regex.Match(message, pattern);
-                    string timeValue = "";
-                    if (match.Success)
-                    {
-                        timeValue = match.Value;
-                    }
-                    */
-                    string pattern = @"[VIDWEF][/]\w+\s*[(]\s*\d+[)]";
+                    string pattern = @"[VIDWEF][/](\w|[-.:])+\s*[(]\s*\d+[)]";
                     Match match = Regex.Match(message, pattern);
                     if (match.Success)
                     {
@@ -180,12 +113,12 @@ namespace ADBConsole
                             case 'I':
                             case 'V':
                                 {
-                                    consoleBox.SelectionColor = Color.Green;
+                                    consoleBox.SelectionColor = Color.LightGreen;
                                     break;
                                 }
                             case 'D':
                                 {
-                                    consoleBox.SelectionColor = Color.Blue;
+                                    consoleBox.SelectionColor = Color.DeepSkyBlue;
                                     break;
                                 }
                             case 'W':
@@ -205,12 +138,6 @@ namespace ADBConsole
                                     break;
                                 }
                         }
-                        /*int startBracket = match.Value.IndexOf('(');
-                        if (2 <= startBracket)
-                        {
-                            string tagName = match.Value.Substring(2, startBracket - 2);
-                            tagName.trim();
-                        }*/
                     }
                 }
                 catch (Exception)
@@ -218,68 +145,30 @@ namespace ADBConsole
                     Console.WriteLine("Exception from Regex");
                 }
 
-                consoleBox.AppendText(message);
-
-                /*
                 if (bTest)
                 {
-                    consoleBox.SelectionColor = Color.Red;
-                    bTest = false;
+                    consoleBox.AppendText(message);
+                    m_logFile.Write(message);
                 }
-                else
+
+                int maxLines = 2000;
+                int delta = 100; //to improve performance, delete 100 lines each time
+                if (consoleBox.Lines.Length > maxLines + delta)
                 {
-                    if (Color.White != consoleBox.SelectionColor)
-                    {
-                        consoleBox.SelectionColor = Color.White;
-                    }
-                }*/
-                //consoleBox.SelectedText = Environment.NewLine + "Test selected text";
+                    Console.WriteLine(" >>>>>>>>>>>>>>> delete ");
+                    consoleBox.SelectionStart = 0;
+                    //consoleBox.SelectionLength = consoleBox.Text.IndexOf("\n", 0) + 1;
+
+                    int pos = consoleBox.GetFirstCharIndexFromLine(consoleBox.Lines.Length - maxLines);
+
+                    consoleBox.Select(0, pos);
+                    consoleBox.SelectedText = "";
+                    
+                }
 
                 consoleBox.SelectionStart = consoleBox.Text.Length;
                 consoleBox.ScrollToCaret();
 
-                //set focus back to input textbox
-                //textBox2.Focus();
-
-                /*
-                if (m_bDownloadingString && message == "U string.stx\r\n")
-                {
-                    m_bDownloadingString = false;
-                    string argument = m_CVSAccess.TempFolder + @"\" + "string.stx";
-
-                    m_WaitDialog.CloseDialog = true;
-
-                    if (OpenNotepadRBtn.Checked)
-                    {
-                        System.Diagnostics.Process.Start("notepad", argument);
-                    }
-                    else
-                    {
-                        SaveStringToDisk(argument);
-                    }
-                }*/
-                //}
-                /*
-                if (ParsingCVSLog)
-                {
-                    string result = m_CVSAccess.TempFolder.ToUpper() + ">" + FINISH + "\r\n";
-                    if ((0 == HistoryList.Items.Count) &&
-                        (message.ToUpper() == result.ToUpper()))
-                    {
-                        //incorrect username or password
-                        //failed to communicate with CVS server
-                        //OR
-                        //no string.stx under specified tag branch.                                                                                    
-                        ParsingCVSLog = false;
-                        m_WaitDialog.CloseDialog = true;
-                        textBox1.AppendText(@" >>>>  no string history information found.");
-                        MessageBox.Show("Can not get string log, \r\nPlease check CVS account info and branch Tag");
-                    }
-                    else
-                    {
-                        PushMessageToLogQueue(message);
-                    }
-                }*/
             }
         }
 
@@ -296,9 +185,10 @@ namespace ADBConsole
                 {
                     string ADBCMD;
                     //ADBCMD = "dir";
-                    //ADBCMD = @"C:\SDK_64-20140702\sdk\platform-tools\adb.exe";
-                    ADBCMD = "adb logcat -v time";
+                    ADBCMD = "adb logcat -c";
                     m_bCMDQueuing = true;
+                    m_ADBCommandQueueWriter.Enqueue(ADBCMD);
+                    ADBCMD = "adb logcat -v time";
                     m_ADBCommandQueueWriter.Enqueue(ADBCMD);
                     m_bCMDQueuing = false;
                 }
@@ -316,6 +206,7 @@ namespace ADBConsole
 
         private void Cleanup()
         {
+            m_logFile.Close();
             m_ADBCommandQueue.Clear();
         }
 

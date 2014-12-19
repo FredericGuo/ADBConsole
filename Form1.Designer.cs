@@ -33,6 +33,7 @@ namespace ADBConsole
             this.ExitBtn = new System.Windows.Forms.Button();
             this.ADBStopBtn = new System.Windows.Forms.Button();
             this.ADBStartBtn = new System.Windows.Forms.Button();
+            this.label1 = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
@@ -53,11 +54,12 @@ namespace ADBConsole
             // 
             // splitContainer1.Panel2
             // 
+            this.splitContainer1.Panel2.Controls.Add(this.label1);
             this.splitContainer1.Panel2.Controls.Add(this.ExitBtn);
             this.splitContainer1.Panel2.Controls.Add(this.ADBStopBtn);
             this.splitContainer1.Panel2.Controls.Add(this.ADBStartBtn);
-            this.splitContainer1.Size = new System.Drawing.Size(938, 481);
-            this.splitContainer1.SplitterDistance = 423;
+            this.splitContainer1.Size = new System.Drawing.Size(938, 491);
+            this.splitContainer1.SplitterDistance = 439;
             this.splitContainer1.SplitterWidth = 1;
             this.splitContainer1.TabIndex = 0;
             // 
@@ -73,9 +75,8 @@ namespace ADBConsole
             this.consoleBox.Location = new System.Drawing.Point(0, 0);
             this.consoleBox.MaxLength = 7483647;
             this.consoleBox.Name = "consoleBox";
-            this.consoleBox.ReadOnly = true;
             this.consoleBox.ShortcutsEnabled = false;
-            this.consoleBox.Size = new System.Drawing.Size(938, 423);
+            this.consoleBox.Size = new System.Drawing.Size(938, 439);
             this.consoleBox.TabIndex = 0;
             this.consoleBox.Text = "";
             this.consoleBox.WordWrap = false;
@@ -84,7 +85,7 @@ namespace ADBConsole
             // 
             this.ExitBtn.Location = new System.Drawing.Point(43, 7);
             this.ExitBtn.Name = "ExitBtn";
-            this.ExitBtn.Size = new System.Drawing.Size(75, 44);
+            this.ExitBtn.Size = new System.Drawing.Size(75, 41);
             this.ExitBtn.TabIndex = 2;
             this.ExitBtn.Text = "Exit";
             this.ExitBtn.UseVisualStyleBackColor = true;
@@ -95,9 +96,9 @@ namespace ADBConsole
             this.ADBStopBtn.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.ADBStopBtn.Location = new System.Drawing.Point(843, 7);
             this.ADBStopBtn.Name = "ADBStopBtn";
-            this.ADBStopBtn.Size = new System.Drawing.Size(83, 44);
+            this.ADBStopBtn.Size = new System.Drawing.Size(83, 41);
             this.ADBStopBtn.TabIndex = 1;
-            this.ADBStopBtn.Text = "Stop";
+            this.ADBStopBtn.Text = "Pause";
             this.ADBStopBtn.UseVisualStyleBackColor = true;
             this.ADBStopBtn.Click += new System.EventHandler(this.ADBStopBtn_Click);
             // 
@@ -106,17 +107,26 @@ namespace ADBConsole
             this.ADBStartBtn.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.ADBStartBtn.Location = new System.Drawing.Point(729, 7);
             this.ADBStartBtn.Name = "ADBStartBtn";
-            this.ADBStartBtn.Size = new System.Drawing.Size(83, 44);
+            this.ADBStartBtn.Size = new System.Drawing.Size(83, 41);
             this.ADBStartBtn.TabIndex = 0;
-            this.ADBStartBtn.Text = "Start";
+            this.ADBStartBtn.Text = "Start/Resume";
             this.ADBStartBtn.UseVisualStyleBackColor = true;
             this.ADBStartBtn.Click += new System.EventHandler(this.ADBStartBtn_Click);
+            // 
+            // label1
+            // 
+            this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label1.Location = new System.Drawing.Point(286, 18);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(296, 24);
+            this.label1.TabIndex = 3;
+            this.label1.Text = "The log file is saved at  :  .\\AdbMessage.log";
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(938, 481);
+            this.ClientSize = new System.Drawing.Size(938, 491);
             this.ControlBox = false;
             this.Controls.Add(this.splitContainer1);
             this.Name = "Form1";
@@ -136,6 +146,7 @@ namespace ADBConsole
         private System.Windows.Forms.Button ADBStartBtn;
         private System.Windows.Forms.Button ExitBtn;
         private System.Windows.Forms.RichTextBox consoleBox;
+        private System.Windows.Forms.Label label1;
     }
 }
 
