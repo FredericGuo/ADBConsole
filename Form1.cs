@@ -20,6 +20,9 @@ namespace ADBConsole
         ADBAccess m_ADBAccess;
         bool m_bSuspendLogout;
         System.IO.StreamWriter m_logFile;
+        
+        String m_tagFilter;
+        Boolean m_tagFilterEnabled;
 
         bool m_bCMDQueuing;
 
@@ -43,8 +46,21 @@ namespace ADBConsole
             m_bCMDQueuing = false;
             m_adbListenThread = null;
             bTest = true;
+            m_tagFilter = "";
+            m_tagFilterEnabled = false;
 
-            m_logFile = new System.IO.StreamWriter(@".\AdbMessage.log");
+            String FILE_NAME = "AdbMessage";
+            int suffix = 1;
+
+            String fileName = @".\" + FILE_NAME + ".log";
+            while( System.IO.File.Exists( fileName))
+            {
+                fileName = @".\" + FILE_NAME + suffix.ToString() + ".log";
+                ++suffix;
+            }
+
+            fileLocationMsg.Text = @"The log file is saved at : " + fileName;
+            m_logFile = new System.IO.StreamWriter( fileName );
 
             m_ADBCommandQueue = new Queue();
             m_ADBCommandQueueReader = Queue.Synchronized(m_ADBCommandQueue);
@@ -70,9 +86,11 @@ namespace ADBConsole
                     Application.DoEvents();
 
                     if (0 == adbOutputQueue.Count)
-                    {
+                    {                        
+                        //only flush at idle time
+                        m_logFile.Flush();
                         //only sleep when there is no string in the queue.
-                        System.Threading.Thread.Sleep(5);
+                        System.Threading.Thread.Sleep(2);
                     }
                     else
                     {                      
@@ -106,6 +124,31 @@ namespace ADBConsole
                     Match match = Regex.Match(message, pattern);
                     if (match.Success)
                     {
+                        if (m_tagFilterEnabled)
+                        {
+                            int startBracket = match.Value.IndexOf('(');
+                            if (2 <= startBracket)
+                            {
+                                string tagName = match.Value.Substring(2, startBracket - 2);
+                                
+                                //not necessary/right, just easy the debugger
+                                tagName.Trim();
+                                tagName = tagName.ToUpper();
+
+                                if (0 < tagName.Length)
+                                {
+                                    if (tagName.Equals(m_tagFilter))
+                                    {
+                                        consoleBox.SelectionBackColor = Color.SlateGray;
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            //consoleBox.SelectionBackColor = Color.SlateGray;
+                        }
+
                         char tagLevel = match.Value[0];
 
                         switch (tagLevel)
@@ -114,22 +157,26 @@ namespace ADBConsole
                             case 'V':
                                 {
                                     consoleBox.SelectionColor = Color.LightGreen;
+                                    //consoleBox.SelectionBackColor = Color.SlateGray;
                                     break;
                                 }
                             case 'D':
                                 {
                                     consoleBox.SelectionColor = Color.DeepSkyBlue;
+                                    //consoleBox.SelectionBackColor = Color.SlateGray;
                                     break;
                                 }
                             case 'W':
                                 {
-                                    consoleBox.SelectionColor = Color.Orange;
+                                    consoleBox.SelectionColor = Color.LightSalmon;
+                                    //consoleBox.SelectionBackColor = Color.SlateGray;
                                     break;
                                 }
                             case 'E':
                             case 'F':
                                 {
-                                    consoleBox.SelectionColor = Color.Red;
+                                    consoleBox.SelectionColor = Color.Tomato;
+                                    //consoleBox.SelectionBackColor = Color.SlateGray;
                                     break;
                                 }
                             default:
@@ -155,9 +202,8 @@ namespace ADBConsole
                 int delta = 100; //to improve performance, delete 100 lines each time
                 if (consoleBox.Lines.Length > maxLines + delta)
                 {
-                    Console.WriteLine(" >>>>>>>>>>>>>>> delete ");
+                    //Console.WriteLine(" >>>>>>>>>>>>>>> delete ");
                     consoleBox.SelectionStart = 0;
-                    //consoleBox.SelectionLength = consoleBox.Text.IndexOf("\n", 0) + 1;
 
                     int pos = consoleBox.GetFirstCharIndexFromLine(consoleBox.Lines.Length - maxLines);
 
@@ -215,6 +261,22 @@ namespace ADBConsole
             m_ADBAccess.Exit();
             Cleanup();
             System.Environment.Exit(System.Environment.ExitCode);
+        }
+
+        private void TagEnable_CheckedChanged(object sender, EventArgs e)
+        {
+            if (CheckState.Checked == this.TagEnable.CheckState)
+            {
+                m_tagFilter = TagNameBox.Text.ToUpper();
+                m_tagFilterEnabled = true;
+                TagNameBox.Enabled = false;
+            }
+            else
+            {
+                m_tagFilterEnabled = false;
+                m_tagFilter = "";
+                TagNameBox.Enabled = true;
+            }
         }
     }
 }
