@@ -7,7 +7,9 @@ using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 using System.Threading;    //to run commands concurrently
-using System.Text.RegularExpressions; 
+using System.Text.RegularExpressions;
+using System.Collections.Generic;
+using System.Diagnostics; 
 
 namespace ADBConsole
 {
@@ -23,6 +25,9 @@ namespace ADBConsole
         
         String m_tagFilter;
         Boolean m_tagFilterEnabled;
+
+        const int maxLines = 100000;
+        List<String> m_logList;
 
         bool m_bCMDQueuing;
 
@@ -42,6 +47,8 @@ namespace ADBConsole
         public Form1()
         {
             InitializeComponent();
+
+            m_logList = new List<string>(5);
 
             m_bCMDQueuing = false;
             m_adbListenThread = null;
@@ -117,104 +124,19 @@ namespace ADBConsole
                 Invoke(new DisplayDelegate(DisplayMessage), new object[] { message });
             }
             else
-            {                               
-                try
-                {
-                    string pattern = @"[VIDWEF][/](\w|[-.:])+\s*[(]\s*\d+[)]";
-                    Match match = Regex.Match(message, pattern);
-                    if (match.Success)
-                    {
-                        if (m_tagFilterEnabled)
-                        {
-                            int startBracket = match.Value.IndexOf('(');
-                            if (2 <= startBracket)
-                            {
-                                string tagName = match.Value.Substring(2, startBracket - 2);
-                                
-                                //not necessary/right, just easy the debugger
-                                tagName.Trim();
-                                tagName = tagName.ToUpper();
+            {
+                m_logList.Add(message);
+                m_logFile.Write(message);
+                this.consoleBox.VirtualListSize = m_logList.Count;
 
-                                if (0 < tagName.Length)
-                                {
-                                    if (tagName.Equals(m_tagFilter))
-                                    {
-                                        consoleBox.SelectionBackColor = Color.SlateGray;
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            //consoleBox.SelectionBackColor = Color.SlateGray;
-                        }
-
-                        char tagLevel = match.Value[0];
-
-                        switch (tagLevel)
-                        {
-                            case 'I':
-                            case 'V':
-                                {
-                                    consoleBox.SelectionColor = Color.LightGreen;
-                                    //consoleBox.SelectionBackColor = Color.SlateGray;
-                                    break;
-                                }
-                            case 'D':
-                                {
-                                    consoleBox.SelectionColor = Color.DeepSkyBlue;
-                                    //consoleBox.SelectionBackColor = Color.SlateGray;
-                                    break;
-                                }
-                            case 'W':
-                                {
-                                    consoleBox.SelectionColor = Color.LightSalmon;
-                                    //consoleBox.SelectionBackColor = Color.SlateGray;
-                                    break;
-                                }
-                            case 'E':
-                            case 'F':
-                                {
-                                    consoleBox.SelectionColor = Color.Tomato;
-                                    //consoleBox.SelectionBackColor = Color.SlateGray;
-                                    break;
-                                }
-                            default:
-                                {
-                                    consoleBox.SelectionColor = Color.White; //should not go here
-                                    break;
-                                }
-                        }
-                    }
-                }
-                catch (Exception)
-                {
-                    Console.WriteLine("Exception from Regex");
-                }
-
-                if (bTest)
-                {
-                    consoleBox.AppendText(message);
-                    m_logFile.Write(message);
-                }
-
-                int maxLines = 2000;
                 int delta = 100; //to improve performance, delete 100 lines each time
-                if (consoleBox.Lines.Length > maxLines + delta)
+                if ( m_logList.Count > maxLines + delta)
                 {
-                    //Console.WriteLine(" >>>>>>>>>>>>>>> delete ");
-                    consoleBox.SelectionStart = 0;
-
-                    int pos = consoleBox.GetFirstCharIndexFromLine(consoleBox.Lines.Length - maxLines);
-
-                    consoleBox.Select(0, pos);
-                    consoleBox.SelectedText = "";
-                    
+                    Console.WriteLine(" >>>>>>>>>>>>>>> delete ");
+                    m_logList.RemoveRange(m_logList.Count - 100, 100);
                 }
 
-                consoleBox.SelectionStart = consoleBox.Text.Length;
-                consoleBox.ScrollToCaret();
-
+                consoleBox.Items[m_logList.Count-1].EnsureVisible();
             }
         }
 
@@ -227,10 +149,8 @@ namespace ADBConsole
                 m_ADBAccess.StartCMD();
                 System.Threading.Thread.Sleep(200);
 
-                //send demo command
                 {
                     string ADBCMD;
-                    //ADBCMD = "dir";
                     ADBCMD = "adb logcat -c";
                     m_bCMDQueuing = true;
                     m_ADBCommandQueueWriter.Enqueue(ADBCMD);
@@ -277,6 +197,126 @@ namespace ADBConsole
                 m_tagFilter = "";
                 TagNameBox.Enabled = true;
             }
+        }
+
+        private void consoleBox_RetrieveVirtualItem(object sender, RetrieveVirtualItemEventArgs e)
+        {
+            int itemIndex = e.ItemIndex;
+            Color itemTextColor = Color.White;
+            Color itemBackgroundColor = Color.Black;
+
+            if( itemIndex >= m_logList.Count )
+            {
+                Console.WriteLine( "Error : consoleBox_RetrieveVirtualItem() : invalid itemIndex.");
+                Debug.Assert(false);
+                return;
+            }
+
+            String message = m_logList[itemIndex];
+
+                try
+                {
+                    string pattern = @"[VIDWEF][/](\w|[-.:])+\s*[(]\s*\d+[)]";
+                    Match match = Regex.Match(message, pattern);
+                    if (match.Success)
+                    {
+                        if (m_tagFilterEnabled)
+                        {
+                            int startBracket = match.Value.IndexOf('(');
+                            if (2 <= startBracket)
+                            {
+                                string tagName = match.Value.Substring(2, startBracket - 2);
+                                
+                                //not necessary/right, just easy the debugger
+                                tagName.Trim();
+                                tagName = tagName.ToUpper();
+
+                                if (0 < tagName.Length)
+                                {
+                                    if (tagName.Equals(m_tagFilter))
+                                    {
+                                        itemBackgroundColor = Color.SlateGray;
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            //consoleBox.SelectionBackColor = Color.SlateGray;
+                        }
+
+                        char tagLevel = match.Value[0];
+
+                        switch (tagLevel)
+                        {
+                            case 'I':
+                            case 'V':
+                                {
+                                    itemTextColor = Color.LightGreen;
+                                    break;
+                                }
+                            case 'D':
+                                {
+                                    itemTextColor = Color.DeepSkyBlue;
+                                    break;
+                                }
+                            case 'W':
+                                {
+                                    itemTextColor = Color.LightSalmon;
+                                    break;
+                                }
+                            case 'E':
+                            case 'F':
+                                {
+                                    itemTextColor = Color.Tomato;
+                                    break;
+                                }
+                            default:
+                                {
+                                    itemTextColor = Color.White; //should not go here
+                                    break;
+                                }
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("Exception from Regex");
+                }
+
+                /*
+                if (bTest)
+                {
+                    consoleBox.AppendText(message);
+                    m_logFile.Write(message);
+                }*/
+
+            ListViewItem lvi = new ListViewItem();
+            lvi.Text = message;
+            lvi.BackColor = itemBackgroundColor;
+            lvi.ForeColor = itemTextColor;
+            e.Item = lvi;
+        }
+
+        private void Form1_SizeChanged(object sender, EventArgs e)
+        {
+            Control control = (Control)sender;
+		    if( control.Width != this.consoleBox.Columns[0].Width - 25 )
+            {
+                this.consoleBox.Columns[0].Width = control.Width - 25;
+            }
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            this.consoleBox.VirtualMode = true;
+            this.consoleBox.VirtualListSize = m_logList.Count;
+            this.consoleBox.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.None;
+            this.consoleBox.Columns[0].Width = this.Width - 25;
+
+            //use double buffer to improve performance
+            System.Reflection.PropertyInfo aProp = typeof(ListView).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            aProp.SetValue(consoleBox, true, null);            
         }
     }
 }
